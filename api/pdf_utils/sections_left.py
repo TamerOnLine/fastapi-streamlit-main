@@ -9,13 +9,73 @@ from reportlab.lib import colors
 from .config import *
 from .icons import ICON_PATHS, draw_icon_line
 from .text import wrap_text, draw_par
+from .social import extract_social_handle
+
 
 
 def info_line(c, x, y, key: str, value: str, max_w: float, line_gap=LEFT_LINE_GAP, size=LEFT_TEXT_SIZE):
-    """Draws a single line of personal info with an icon."""
+    """
+    Draws a single line of text with an optional icon and clickable hyperlink for specific keys.
+
+    Args:
+        c: Canvas or drawing context.
+        x (float): X-coordinate for the starting point.
+        y (float): Y-coordinate for the starting point.
+        key (str): Label key (e.g., "GitHub", "LinkedIn", "Phone").
+        value (str): Raw input string to be processed.
+        max_w (float): Maximum allowed width for the rendered line.
+        line_gap (float, optional): Line spacing. Defaults to LEFT_LINE_GAP.
+        size (float, optional): Font size. Defaults to LEFT_TEXT_SIZE.
+
+    Returns:
+        Rendered line with optional link and icon, if applicable.
+
+    Notes:
+        - Only GitHub and LinkedIn values are transformed into clickable links.
+        - Non-social fields are rendered as plain text.
+    """
     icon = ICON_PATHS.get(key)
-    display = value
-    link = None  # Social linking disabled here; handled elsewhere if needed
+    raw = (value or "").strip()
+    display = raw
+    link = None
+
+    # Only transform social media fields into links
+    if key in ("GitHub", "LinkedIn"):
+        got = extract_social_handle(key, raw)
+        if got:
+            display, link = got
+        else:
+            import re
+            v = raw.lower().strip()
+
+            # Remove leading identifiers like 'github:' or 'linkedin:'
+            for pref in ("github:", "linkedin:"):
+                if v.startswith(pref):
+                    v = v[len(pref):].strip()
+                    break
+
+            # Clean URL prefixes
+            v = re.sub(r'^(https?://)?(www\.)?', '', v, flags=re.I).strip()
+            v = v.lstrip('@').strip()
+
+            if key == "GitHub":
+                if v.startswith("github.com/"):
+                    v = v.split("/", 1)[1]
+                v = v.split("/")[0]
+                if v:
+                    display = v
+                    link = f"https://github.com/{v}"
+
+            elif key == "LinkedIn":
+                if v.startswith("linkedin.com/"):
+                    parts = v.split("/", 2)
+                    if len(parts) >= 3:
+                        v = parts[2]
+                v = v.split("/")[0]
+                if v:
+                    display = v
+                    link = f"https://www.linkedin.com/in/{v}"
+
     return draw_icon_line(
         c, x, y, icon, display,
         icon_w=ICON_SIZE, icon_h=ICON_SIZE, pad_x=ICON_PAD_X, size=size,
