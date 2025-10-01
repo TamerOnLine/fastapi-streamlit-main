@@ -1,3 +1,8 @@
+"""
+API endpoint for generating a resume PDF from form input.
+Handles file upload, text parsing, and PDF rendering using the PDF utility modules.
+"""
+
 from __future__ import annotations
 
 from typing import Optional
@@ -6,16 +11,19 @@ from fastapi.responses import Response
 
 from ..pdf_utils import build_resume_pdf
 from ..utils.parsers import (
-    parse_csv_or_lines, normalize_language_level,
-    parse_projects_blocks, parse_education_blocks,
+    parse_csv_or_lines,
+    normalize_language_level,
+    parse_projects_blocks,
+    parse_education_blocks,
     parse_sections_text,
 )
 
+
 router = APIRouter()
+
 
 @router.post("/generate-form")
 async def generate_form(
-    # معلومات أساسية
     name: str = Form(""),
     location: str = Form(""),
     phone: str = Form(""),
@@ -23,27 +31,23 @@ async def generate_form(
     github: str = Form(""),
     linkedin: str = Form(""),
     birthdate: str = Form(""),
-
-    # نصوص حرّة من الواجهة
     projects_text: str = Form(""),
     education_text: str = Form(""),
     sections_left_text: str = Form(""),
     sections_right_text: str = Form(""),
-
-    # مهارات ولغات
     skills_text: str = Form(""),
     languages_text: str = Form(""),
-
-    # خيارات
     rtl_mode: str = Form("false"),
-
-    # صورة شخصية (اختياري)
     photo: Optional[UploadFile] = File(None),
 ):
-    # حمّل الصورة (إن وجدت)
+    """
+    Accepts form data and returns a generated PDF resume.
+
+    Returns:
+        Response: A PDF file as application/pdf.
+    """
     photo_bytes: Optional[bytes] = await photo.read() if photo else None
 
-    # تحويل النصوص لهياكل
     skills = parse_csv_or_lines(skills_text)
     languages = [normalize_language_level(x) for x in parse_csv_or_lines(languages_text)]
     projects = parse_projects_blocks(projects_text)
@@ -51,7 +55,6 @@ async def generate_form(
     sections_left = parse_sections_text(sections_left_text)
     sections_right = parse_sections_text(sections_right_text)
 
-    # توليد الـ PDF
     pdf = build_resume_pdf(
         name=name,
         location=location,

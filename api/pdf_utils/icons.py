@@ -1,39 +1,48 @@
-# api/pdf_utils/icons.py
+"""
+Utility functions for drawing icon-text lines in PDF using ReportLab.
+Includes automatic social link parsing for GitHub and LinkedIn.
+"""
+
 from __future__ import annotations
+
 from pathlib import Path
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
 from reportlab.lib.utils import ImageReader
 from reportlab.lib import colors
-from .text import wrap_text
 
+from .text import wrap_text
 from .paths import ICONS_DIR
-from .fonts import UI_FONT  # لو كنت لا تستخدمه، يمكن حذفه
+from .fonts import UI_FONT  # Remove if unused
 from .config import (
     LEFT_TEXT_FONT, LEFT_TEXT_FONT_BOLD, LEFT_TEXT_IS_BOLD,
     LEFT_TEXT_SIZE, LEFT_LINE_GAP,
     ICON_SIZE, ICON_PAD_X, ICON_TEXT_DY, ICON_VALIGN,
     HEADING_COLOR, TEXT_SIZE, LEADING_BODY,
 )
-from .social import extract_social_handle  # مهم لاستخدام روابط GitHub/LinkedIn
+from .social import extract_social_handle
 
 
 def icon_path(name: str) -> Path | None:
+    """Returns the path of the icon file if it exists."""
     p = ICONS_DIR / name
     return p if p.exists() else None
 
+
 ICON_PATHS: dict[str, Path | None] = {
-    "Ort":          icon_path("pin.png"),
-    "Telefon":      icon_path("phone.png"),
-    "E-Mail":       icon_path("mail.png"),
+    "Ort": icon_path("pin.png"),
+    "Telefon": icon_path("phone.png"),
+    "E-Mail": icon_path("mail.png"),
     "Geburtsdatum": icon_path("cake.png"),
-    "GitHub":       icon_path("github.png"),
-    "LinkedIn":     icon_path("linkedin.png"),
+    "GitHub": icon_path("github.png"),
+    "LinkedIn": icon_path("linkedin.png"),
 }
+
 
 def draw_icon_line(
     c: canvas.Canvas,
-    x: float, y: float,
+    x: float,
+    y: float,
     icon: Path | None,
     value: str,
     *,
@@ -49,33 +58,41 @@ def draw_icon_line(
     container_w: float | None = None,
     link_url: str | None = None,
 ) -> float:
+    """
+    Draws an icon followed by text, optionally wrapping and linking.
+
+    Returns:
+        float: Updated y-position after drawing.
+    """
     value_font = LEFT_TEXT_FONT_BOLD if LEFT_TEXT_IS_BOLD else LEFT_TEXT_FONT
     asc = pdfmetrics.getAscent(value_font) / 1000.0 * size
     dsc = abs(pdfmetrics.getDescent(value_font)) / 1000.0 * size
 
-    # أيقونة (أو نقطة احتياطية)
+    # Draw icon or fallback bullet
     if icon and icon.is_file():
         try:
             img = ImageReader(str(icon))
             c.drawImage(img, x, y - icon_h, width=icon_w, height=icon_h, mask="auto")
         except Exception:
-            c.setFont(value_font, size + 2); c.drawString(x, y, "•")
+            c.setFont(value_font, size + 2)
+            c.drawString(x, y, "•")
     else:
-        c.setFont(value_font, size + 2); c.drawString(x, y, "•")
+        c.setFont(value_font, size + 2)
+        c.drawString(x, y, "•")
 
-    # حساب موضع النص
+    # Positioning text
     text_x = x + icon_w + pad_x
     half_text = (asc - dsc) / 2.0
-    baseline = y - (icon_h / 2.0 - half_text)  # محاذاة وسط
+    baseline = y - (icon_h / 2.0 - half_text)
     text_y = baseline + text_dy
 
     c.setFont(value_font, size)
     c.setFillColor(colors.black)
 
-    # لو في max_w → لف النص داخل المساحة المتاحة
+    # Handle text wrapping if applicable
     if max_w is not None:
         avail_w = max_w - (text_x - x)
-        if avail_w < 20:  # حماية من عرض ضيق جدًا
+        if avail_w < 20:
             avail_w = max(20, avail_w)
 
         lines = wrap_text(value, value_font, size, avail_w)
@@ -87,22 +104,20 @@ def draw_icon_line(
             if i == 0 and link_url:
                 tw = pdfmetrics.stringWidth(ln, value_font, size)
                 first_line_twidth = tw
-                # اجعل منطقة الرابط على السطر الأول فقط
                 c.linkURL(
                     link_url,
                     (text_x, cur_y - dsc, text_x + tw, cur_y + asc * 0.2),
                     relative=0,
-                    thickness=0
+                    thickness=0,
                 )
             cur_y -= (line_gap if line_gap is not None else LEADING_BODY)
 
         block_h = (text_y - cur_y) + (line_gap if line_gap is not None else LEADING_BODY)
         used_h = max(icon_h, block_h)
-        # مسافة آمنة دائماً: أكبر من قيمة التباعد المطلوبة وأكبر من ارتفاع البلوك
         gap = max((line_gap or LEADING_BODY), used_h + 2)
         return y - gap
 
-    # بدون التفاف (سطر واحد)
+    # No wrapping, single line
     c.drawString(text_x, text_y, value)
     if link_url:
         tw = pdfmetrics.stringWidth(value, value_font, size)
@@ -117,7 +132,7 @@ def info_line(
     c: canvas.Canvas,
     x: float,
     y: float,
-    key: str,               # "GitHub" | "LinkedIn" | "Ort" | ...
+    key: str,
     value: str,
     max_w: float,
     align_h: str = "left",
@@ -125,25 +140,31 @@ def info_line(
     size: int = LEFT_TEXT_SIZE,
 ) -> float:
     """
-    يرسم سطر بمعلومات وبأيقونة تلقائيًا، ويفعّل رابط GitHub/LinkedIn إن وُجد.
-    يعيد y الجديد بعد السطر.
+    Draws an information line with icon and text, adds link if social key.
+
+    Args:
+        c (canvas.Canvas): The PDF canvas to draw on.
+        x (float): Starting x-coordinate.
+        y (float): Starting y-coordinate.
+        key (str): One of the predefined keys (e.g., "GitHub", "LinkedIn").
+        value (str): Text value to draw.
+        max_w (float): Maximum allowed width.
+
+    Returns:
+        float: Updated y-coordinate after drawing.
     """
     if not value:
         return y
 
-    display = (value or "").strip()
+    display = value.strip()
     link = None
 
-    # 1) محاولة الاستخراج القياسية
     if key in ("GitHub", "LinkedIn"):
         got = extract_social_handle(key, display)
         if got:
-            display, link = got  # display=handle, link=full URL
+            display, link = got
         else:
-            # 2) Fallback: ابنِ الرابط من الهاندل/الرابط الخام
             v = display
-
-            # أزل بادئات شائعة لو المستخدم كتب "GitHub: TamerOnLine" أو لصق "https://www..."
             lowers = v.lower()
             for pref in ("github:", "linkedin:"):
                 if lowers.startswith(pref):
@@ -155,17 +176,14 @@ def info_line(
                 v = v[4:]
             v = v.lstrip("@").strip()
 
-            # إن كان URL اختصره إلى الهاندل
             if key == "GitHub":
-                # github.com/<handle>
                 if v.lower().startswith("github.com/"):
                     v = v.split("/", 1)[1]
-                v = v.split("/")[0]  # احذف أي مسار لاحق
+                v = v.split("/")[0]
                 display = v
                 link = f"https://github.com/{v}" if v else None
 
             elif key == "LinkedIn":
-                # linkedin.com/in/<handle> أو /pub/
                 if v.lower().startswith("linkedin.com/"):
                     parts = v.split("/", 2)
                     if len(parts) >= 3:
@@ -174,10 +192,8 @@ def info_line(
                 display = v
                 link = f"https://www.linkedin.com/in/{v}" if v else None
 
-    # أيقونة
     icon = ICON_PATHS.get(key)
 
-    # رسم السطر (سيضيف الرابط إذا link != None)
     return draw_icon_line(
         c=c, x=x, y=y, icon=icon, value=display,
         icon_w=ICON_SIZE, icon_h=ICON_SIZE,

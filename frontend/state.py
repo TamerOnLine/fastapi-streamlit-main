@@ -23,8 +23,9 @@ K = {
 
 DEFAULT_API_BASE = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
 
+
 def init_state():
-    """تهيئة session_state بالقيم الافتراضية"""
+    """Initialize Streamlit session_state with default values."""
     for key in K.values():
         if key not in st.session_state:
             if key == K["rtl_mode"]:

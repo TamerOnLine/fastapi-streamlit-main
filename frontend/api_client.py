@@ -1,9 +1,26 @@
+"""
+Client-side handler for submitting resume form data to the backend PDF generation API.
+"""
+
 from __future__ import annotations
+
 import requests
 import streamlit as st
+
 from .utils import PHOTO_BYTES_KEY, PHOTO_NAME_KEY, PHOTO_MIME_KEY
 
+
 def call_generate_form(api_base: str, form_state: dict) -> bytes:
+    """
+    Sends resume form data to the FastAPI backend and returns the generated PDF.
+
+    Args:
+        api_base (str): Base URL of the backend API.
+        form_state (dict): Dictionary containing all form fields and their values.
+
+    Returns:
+        bytes: PDF content as bytes.
+    """
     url = api_base.rstrip("/") + "/generate-form"
     data = {
         "name": form_state.get("name", ""),
@@ -21,6 +38,7 @@ def call_generate_form(api_base: str, form_state: dict) -> bytes:
         "languages_text": ", ".join(form_state.get("languages", [])),
         "rtl_mode": "true" if form_state.get("rtl_mode") else "false",
     }
+
     files = None
     if st.session_state.get(PHOTO_BYTES_KEY):
         files = {
@@ -30,6 +48,7 @@ def call_generate_form(api_base: str, form_state: dict) -> bytes:
                 st.session_state.get(PHOTO_MIME_KEY) or "image/png",
             )
         }
+
     resp = requests.post(url, data=data, files=files, timeout=60)
     resp.raise_for_status()
     return resp.content

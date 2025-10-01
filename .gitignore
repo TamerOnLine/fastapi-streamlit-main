@@ -5,9 +5,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
-*.sage.py
-*.manifest
 *.spec
+*.manifest
 cython_debug/
 
 # =========================
@@ -47,6 +46,7 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+pip-wheel-metadata/
 
 # =========================
 # 📄 Installer Logs
@@ -88,6 +88,10 @@ coverage/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+*.db
+*.sqlite
+*.sqlite3
+*.sql
 instance/
 .webassets-cache
 .scrapy
@@ -121,11 +125,11 @@ ipython_config.py
 # 🔧 pyenv / Poetry / Pipenv / PDM / UV
 # =========================
 .python-version
-# Pipfile.lock
-# poetry.lock
-# pdm.lock
+Pipfile.lock
+poetry.lock
+pdm.lock
+uv.lock
 .pdm.toml
-# uv.lock
 
 # =========================
 # 🧵 Celery
@@ -167,11 +171,17 @@ Dev_requirements.txt
 # Local cache from the app
 .cache/
 
-# OS junk
+# =========================
+# 💻 OS junk
+# =========================
 .DS_Store
 Thumbs.db
+ehthumbs.db
+Desktop.ini
 
-# Generated env info 
+# =========================
+# 📦 Generated env info
+# =========================
 env-info.txt
 profiles/
 outputs/

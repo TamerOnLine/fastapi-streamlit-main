@@ -1,30 +1,39 @@
+"""
+Streamlit frontend for the Resume PDF Builder.
+Supports payload injection and fallback imports when run as a standalone script.
+"""
+
 from __future__ import annotations
 
-# --------- نسبية أولاً (داخل حزمة) ---------
+import streamlit as st
+
+# --------- Relative imports (within package) ---------
 try:
     from .state import init_state, K
     from .utils import decode_photo_from_b64, PHOTO_BYTES_KEY, PHOTO_MIME_KEY, PHOTO_NAME_KEY
     from .ui import sidebar, form, photo
-# --------- fallback لو شُغّل كسكربت ---------
+# --------- Fallback for script mode ---------
 except ImportError:
-    import os, sys
+    import os
+    import sys
     CUR = os.path.dirname(__file__)
-    PARENT = os.path.abspath(os.path.join(CUR, os.pardir))  # جذر المشروع
+    PARENT = os.path.abspath(os.path.join(CUR, os.pardir))
     if PARENT not in sys.path:
         sys.path.insert(0, PARENT)
     from frontend.state import init_state, K
     from frontend.utils import decode_photo_from_b64, PHOTO_BYTES_KEY, PHOTO_MIME_KEY, PHOTO_NAME_KEY
     from frontend.ui import sidebar, form, photo
 
-import streamlit as st
-
+# --------- Streamlit Configuration ---------
 st.set_page_config(page_title="Resume PDF Builder", page_icon="🧾", layout="centered")
 st.title("🧾 Resume PDF Builder")
 
 init_state()
 
-# --------- طبّق أي Payload مؤقّت قبل رسم الـ widgets ---------
+
+# --------- Payload Injection ---------
 def _apply_payload_to_form(p: dict) -> None:
+    """Apply temporary payload to form session state."""
     st.session_state[K["name"]] = p.get("name", "") or ""
     st.session_state[K["location"]] = p.get("location", "") or ""
     st.session_state[K["phone"]] = p.get("phone", "") or ""
@@ -58,17 +67,17 @@ def _apply_payload_to_form(p: dict) -> None:
         st.session_state[PHOTO_MIME_KEY] = None
         st.session_state[PHOTO_NAME_KEY] = None
 
-# نفّذ المعالجة إن وُجد payload مؤقّت
+
+# --------- Run Payload Processing ---------
 if "_pending_payload" in st.session_state:
     _apply_payload_to_form(st.session_state["_pending_payload"])
     del st.session_state["_pending_payload"]
 
-# (اختياري) Toast نجاح بعد الـ rerun
+# --------- Optional Toast ---------
 if st.session_state.pop("_show_loaded_toast", False):
-    st.sidebar.success("تم التحميل بنجاح ✅")
+    st.sidebar.success("Loaded successfully ✅")
 
-# — رَسـم الواجهة —
-# ارسم الـ sidebar أولاً (أفضل تجربة)
+# --------- Draw UI ---------
 sidebar.render()
 form.render()
 photo.render()
